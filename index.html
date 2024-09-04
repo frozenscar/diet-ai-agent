@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl">
+        <div class="md:flex">
+            <div class="p-8 w-full">
+                <h1 class="block text-3xl font-bold text-gray-800 mb-6 text-center">Food Tracker</h1>
+                <form id="foodForm" class="mb-6">
+                    <input type="hidden" id="foodId">
+                    <div class="mb-4">
+                        <label for="foodName" class="block text-sm font-medium text-gray-700">Food Name:</label>
+                        <input type="text" id="foodName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="foodTime" class="block text-sm font-medium text-gray-700">Time:</label>
+                        <input type="datetime-local" id="foodTime" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="foodType" class="block text-sm font-medium text-gray-700">Type:</label>
+                        <select id="foodType" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Add Food</button>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table id="foodTable" class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Food Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+
+                <button id="csvDownload" class="mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">Download CSV</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const foodForm = document.getElementById('foodForm');
+        const foodTable = document.getElementById('foodTable');
+        const csvDownload = document.getElementById('csvDownload');
+        const submitBtn = document.getElementById('submitBtn');
+        let foodData = [];
+
+        window.addEventListener('load', fetchFoodData);
+
+        function fetchFoodData() {
+            fetch('http://localhost:3002/get-food')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        foodData = data.data;
+                        updateTable();
+                    } else {
+                        alert('Failed to fetch food data from the database');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    alert('An error occurred while fetching food data');
+                });
+        }
+
+        foodForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const foodId = document.getElementById('foodId').value;
+            const foodName = document.getElementById('foodName').value;
+            const foodTime = document.getElementById('foodTime').value;
+            const foodType = document.getElementById('foodType').value;
+
+            const url = foodId ? `http://localhost:3002/update-food/${foodId}` : 'http://localhost:3002/add-food';
+            const method = foodId ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ food: foodName, time: foodTime, type: foodType }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (foodId) {
+                        const index = foodData.findIndex(item => item.id == foodId);
+                        if (index !== -1) {
+                            foodData[index] = data.data;
+                        }
+                    } else {
+                        foodData.push(data.data);
+                    }
+                    updateTable();
+                    foodForm.reset();
+                    document.getElementById('foodId').value = '';
+                    submitBtn.textContent = 'Add Food';
+                } else {
+                    alert('Failed to add/update food item in the database');
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert('An error occurred while adding/updating the food item');
+            });
+        });
+
+        function updateTable() {
+            const tbody = foodTable.querySelector('tbody');
+            tbody.innerHTML = '';
+            foodData.forEach(food => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${food.food}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDateTime(food.time)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${food.type}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="editFood(${food.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">Edit</button>
+                        <button onclick="deleteFood(${food.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                    </td>
+                `;
+            });
+        }
+
+        function editFood(id) {
+            const food = foodData.find(item => item.id == id);
+            if (food) {
+                document.getElementById('foodId').value = food.id;
+                document.getElementById('foodName').value = food.food;
+                document.getElementById('foodTime').value = food.time.slice(0, 16); // Format for datetime-local input
+                document.getElementById('foodType').value = food.type;
+                submitBtn.textContent = 'Update Food';
+            }
+        }
+
+        function deleteFood(id) {
+            if (confirm('Are you sure you want to delete this food item?')) {
+                fetch(`http://localhost:3002/delete-food/${id}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        foodData = foodData.filter(item => item.id != id);
+                        updateTable();
+                    } else {
+                        alert('Failed to delete food item from the database');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    alert('An error occurred while deleting the food item');
+                });
+            }
+        }
+
+        function formatDateTime(dateTimeString) {
+            const date = new Date(dateTimeString);
+            return date.toLocaleString();
+        }
+
+        csvDownload.addEventListener('click', function() {
+            const csv = Papa.unparse(foodData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "food_tracker.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+    </script>
+</body>
+</html>
