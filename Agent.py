@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from datetime import date, timedelta
 from langchain.chains import LLMChain
 from langchain_core.pydantic_v1 import BaseModel, Field
+import sec
 
 
 
@@ -23,7 +24,7 @@ conn = psycopg2.connect(
 )
 
 # Set up the LLM
-os.environ["TOGETHER_API_KEY"] = "Your API KEY"
+os.environ["TOGETHER_API_KEY"] = sec.together_api #put your api key here
 llm = ChatOpenAI(
     base_url="https://api.together.xyz/v1",
     api_key=os.environ["TOGETHER_API_KEY"],
