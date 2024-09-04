@@ -16,3 +16,17 @@ you can see the following UI:
 
 
 Here populate the database, track your meals.
+
+Agent.py has the logic for running the AI agent using LangChain.
+edit Agent.py file and paste your LLM api key.
+
+Run the Agent.py file.
+
+The agent prompts you about the diet in terminal.
+Here are the results of test run:
+
+<img width="1180" alt="image" src="https://github.com/user-attachments/assets/51a47a00-91d8-47b1-a676-1a27a0c859d2">
+
+
+I will add more tools to the AI agent so that it can take more complex actions to assist the user better.
+
